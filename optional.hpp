@@ -75,7 +75,7 @@ using function_result_t = typename function_result<Function, void, Arguments...>
 class no_such_element_error : public std::runtime_error
 {
 public:
-	using std::runtime_error::runtime_error;
+	no_such_element_error() noexcept : std::runtime_error("no element present in optional") {}
 };
 
 
@@ -103,7 +103,13 @@ public:
 	optional(optional&& _move) = delete;
 	~optional()
 	{
+		reset();
+	}
+	void reset()
+	{
 		if (_present) {
+			_preset = false;
+
 			reinterpret_cast<Type*>(&_data)->~Type();
 		}
 	}
@@ -121,6 +127,13 @@ public:
 			_consumer(get());
 		}
 	}
+	template<typename... Arguments>
+	void emplace(Arguments&&... _arguments)
+	{
+		reset();
+
+		new(&_data) Type(std::forward<Arguments>(_arguments)...);
+	}
 	bool is_present() const noexcept
 	{
 		return _present;
@@ -128,7 +141,7 @@ public:
 	Type& get()
 	{
 		if (!_present) {
-			throw no_such_element_error("no element present in optional");
+			throw no_such_element_error();
 		}
 
 		return *reinterpret_cast<Type*>(&_data);
@@ -136,7 +149,7 @@ public:
 	const Type& get() const
 	{
 		if (!_present) {
-			throw no_such_element_error("no element present in optional");
+			throw no_such_element_error();
 		}
 
 		return *reinterpret_cast<const Type*>(&_data);
@@ -201,7 +214,18 @@ public:
 
 		return {};
 	}
-
+	operator bool() const noexcept
+	{
+		return is_present();
+	}
+	Type* operator->()
+	{
+		return &get();
+	}
+	const Type* operator->() const
+	{
+		return &get();
+	}
 
 private:
 	typename std::aligned_storage<sizeof(Type), alignof(Type)>::type _data;
@@ -210,7 +234,13 @@ private:
 
 }
 
-
 using no_such_element_error = optional_detail::no_such_element_error;
+
 template<typename Type>
 using optional = typename optional_detail::optional<Type>;
+
+template<typename Type>
+inline optional<Type> make_optional(Type&& _value)
+{
+	return { std::forward<Type>(_value) };
+}

@@ -83,8 +83,6 @@ template<typename Type>
 class optional
 {
 public:
-
-
 	optional() noexcept
 	{
 		_present = false;
@@ -99,8 +97,25 @@ public:
 		new(&_data) Type(std::move(_value));
 		_present = true;
 	}
-	optional(const optional& _copy) = delete;
-	optional(optional&& _move) = delete;
+	optional(const optional& _copy)
+	{
+		if (_copy._present) {
+			new(&_data) Type(_copy.get());
+		}
+
+		_present = _copy._present;
+	}
+	optional(optional&& _move)
+	{
+		if (_move._present) {
+			new(&_data) Type(std::move(_move.get()));
+
+			_present = true;
+			_move._present = false;
+		} else {
+			_present = false;
+		}
+	}
 	~optional()
 	{
 		reset();
@@ -108,7 +123,7 @@ public:
 	void reset()
 	{
 		if (_present) {
-			_preset = false;
+			_present = false;
 
 			reinterpret_cast<Type*>(&_data)->~Type();
 		}

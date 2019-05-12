@@ -1,11 +1,17 @@
 #include <iostream>
-#include <iostream>
+#include <string>
+#include <limits>
 
 #include "optional.hpp"
 
-inline void hello(optional<const char*> _what)
+inline void hello(optional<std::string> _what)
 {
 	_what.if_present([](auto x) { std::cout << "Hello, " << x << std::endl; });
+}
+
+inline double convert(optional<std::string> _what)
+{
+	return _what.map([](auto x) { return std::stod(x); }).or_else(std::numeric_limits<double>::quiet_NaN());
 }
 
 inline optional<std::string> map()
@@ -16,7 +22,10 @@ inline optional<std::string> map()
 int main()
 {
 	hello({});
-	hello("");
+	hello("World!");
+
+	std::cout << convert("5.36") << std::endl;
+	std::cout << convert({}) << std::endl;
 
 	auto a = []() {return 3.4; };
 

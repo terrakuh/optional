@@ -191,6 +191,32 @@ public:
 
 		return _value;
 	}
+	template<typename Supplier>
+	typename std::conditional<
+		std::is_reference<typename function_result_t<Supplier>>::value,
+		Type&,
+		Type>::type
+		or_else_get(Supplier&& _supplier)
+	{
+		if (_present) {
+			return get();
+		}
+
+		return _supplier();
+	}
+	template<typename Supplier>
+	typename std::conditional<
+		std::is_reference<typename function_result_t<Supplier>>::value,
+		const Type&,
+		Type>::type
+		or_else_get(Supplier&& _supplier) const
+	{
+		if (_present) {
+			return get();
+		}
+
+		return _supplier();
+	}
 	template<typename Filter>
 	optional filter(Filter&& _filter)
 	{

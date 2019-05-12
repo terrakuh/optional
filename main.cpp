@@ -1,15 +1,16 @@
 #include <iostream>
+#include <iostream>
 
-#include "../optional.hpp"
+#include "optional.hpp"
 
 inline void hello(optional<const char*> _what)
 {
 	_what.if_present([](auto x) { std::cout << "Hello, " << x << std::endl; });
 }
 
-inline double map(int x)
+inline optional<std::string> map()
 {
-	return x;
+	return "";
 }
 
 int main()

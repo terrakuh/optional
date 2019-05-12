@@ -3,6 +3,7 @@
 *.sln
 *.vcxproj
 *.vcxproj.filters
+optional/
 
 # User-specific files
 *.suo

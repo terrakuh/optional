@@ -83,18 +83,16 @@ template<typename Type>
 class optional
 {
 public:
+	typedef typename Type value_type;
+
 	optional() noexcept
 	{
 		_present = false;
 	}
-	optional(const Type& _value)
+	template<typename Ty>
+	optional(Ty&& _value)
 	{
-		new(&_data) Type(_value);
-		_present = true;
-	}
-	optional(Type&& _value)
-	{
-		new(&_data) Type(std::move(_value));
+		new(&_data) Type(std::forward<Ty>(_value));
 		_present = true;
 	}
 	optional(const optional& _copy)

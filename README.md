@@ -19,7 +19,8 @@ inline void hello(optional<std::string> _what)
 
 inline double convert(optional<std::string> _what)
 {
-  return _what.map([](auto x) { return std::stod(x); }).or_else(std::numeric_limits<double>::quiet_NaN());
+  return _what.map([](auto x) { return std::stod(x); })
+              .or_else(std::numeric_limits<double>::quiet_NaN());
 }
 
 int main()

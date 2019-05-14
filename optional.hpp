@@ -141,6 +141,24 @@ public:
 			_consumer(get());
 		}
 	}
+	template<typename Consumer, typename Runnable>
+	void if_present_or_else(Consumer&& _consumer, Runnable&& _runnable)
+	{
+		if (_present) {
+			_consumer(get());
+		} else {
+			_runnable();
+		}
+	}
+	template<typename Consumer, typename Runnable>
+	void if_present_or_else(Consumer&& _consumer, Runnable&& _runnable) const
+	{
+		if (_present) {
+			_consumer(get());
+		} else {
+			_runnable();
+		}
+	}
 	template<typename... Arguments>
 	void emplace(Arguments&&... _arguments)
 	{
@@ -261,6 +279,14 @@ public:
 	operator bool() const noexcept
 	{
 		return present();
+	}
+	operator Type&()
+	{
+		return get();
+	}
+	operator const Type&() const
+	{
+		return get();
 	}
 	Type* operator->()
 	{

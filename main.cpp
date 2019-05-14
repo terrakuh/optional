@@ -36,6 +36,7 @@ int main()
 
 	try {
 		optional<int> _l;
+
 		_l.or_else_get([v = 3]() -> const int {
 			return v;
 		});

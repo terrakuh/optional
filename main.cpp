@@ -21,6 +21,7 @@ inline optional<std::string> map()
 
 int main()
 {
+
 	hello({});
 	hello("World!");
 
@@ -35,7 +36,10 @@ int main()
 
 	try {
 		optional<int> _l;
-
+		_l.or_else_get([v = 3]() -> const int {
+			return v;
+		});
+		std::cout << (std::hash<optional<int>>()(_l) == std::hash<int>()(0)) << std::endl;
 		_l.if_present([](auto x) { std::cout << x << std::endl; });
 
 		std::cout << _l.or_else(55) << std::endl;

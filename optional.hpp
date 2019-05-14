@@ -26,6 +26,7 @@ SOFTWARE.
 #include <type_traits>
 #include <utility>
 #include <stdexcept>
+#include <functional>
 
 
 namespace optional_detail
@@ -147,9 +148,13 @@ public:
 
 		new(&_data) Type(std::forward<Arguments>(_arguments)...);
 	}
-	bool is_present() const noexcept
+	bool present() const noexcept
 	{
 		return _present;
+	}
+	bool empty() const noexcept
+	{
+		return !_present;
 	}
 	Type& get()
 	{
@@ -255,7 +260,7 @@ public:
 	}
 	operator bool() const noexcept
 	{
-		return is_present();
+		return present();
 	}
 	Type* operator->()
 	{
@@ -264,6 +269,31 @@ public:
 	const Type* operator->() const
 	{
 		return &get();
+	}
+	optional& operator=(const optional& _copy)
+	{
+		reset();
+
+		if (_copy._present) {
+			new(&_data) Type(_copy.get());
+
+			_present = true;
+		}
+
+		return *this;
+	}
+	optional& operator=(optional&& _move)
+	{
+		reset();
+
+		if (_move._present) {
+			new(&_data) Type(std::move(_move.get()));
+
+			_present = true;
+			_move._present = false;
+		}
+
+		return *this;
 	}
 
 private:
@@ -282,4 +312,18 @@ template<typename Type>
 inline optional<Type> make_optional(Type&& _value)
 {
 	return { std::forward<Type>(_value) };
+}
+
+namespace std
+{
+
+template<typename Type>
+struct hash<optional<Type>>
+{
+	std::size_t operator()(const optional<Type>& _value) const
+	{
+		return _value ? std::hash<Type>()(_value.get()) : 0;
+	}
+};
+
 }

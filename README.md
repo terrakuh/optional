@@ -1,5 +1,5 @@
 # optional
-C++11 compliant [Java-like](https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html) optional utility
+C++11 compliant, [Java-like](https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html), single-header and public domain optional utility
 
 # Installation
 Just copy the `optional.hpp` file into your project folder and that's it!

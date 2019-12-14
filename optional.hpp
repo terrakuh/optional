@@ -26,311 +26,319 @@ For more information, please refer to <http://unlicense.org>
 */
 #pragma once
 
+#include <functional>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
-#include <stdexcept>
-#include <functional>
 
-
-namespace optional_detail
-{
+namespace optional_detail {
 
 template<typename... Types>
 struct make_void
 {
-	typedef void type;
+    typedef void type;
 };
 
 template<typename... Types>
 using void_t = typename make_void<Types...>::type;
 
-
 template<typename Function, typename = void, typename... Arguments>
 struct function_result;
 
 template<typename Return, typename... Arguments>
-struct function_result<Return(*)(Arguments...), void, Arguments...>
+struct function_result<Return (*)(Arguments...), void, Arguments...>
 {
-	typedef typename Return type;
+    typedef typename Return type;
 };
 
 template<typename Return, typename Class, typename... Arguments>
-struct function_result<Return(Class::*)(Arguments...), void, Arguments...>
+struct function_result<Return (Class::*)(Arguments...), void, Arguments...>
 {
-	typedef typename Return type;
+    typedef typename Return type;
 };
 
 template<typename Return, typename Class, typename... Arguments>
-struct function_result<Return(Class::*)(Arguments...) const, void, Arguments...>
+struct function_result<Return (Class::*)(Arguments...) const, void, Arguments...>
 {
-	typedef typename Return type;
+    typedef typename Return type;
 };
 
 template<typename Functor, typename... Arguments>
 struct function_result<Functor, void_t<decltype(std::declval<Functor>()(std::declval<Arguments>()...))>, Arguments...>
 {
-	typedef decltype(std::declval<Functor>()(std::declval<Arguments>()...)) type;
+    typedef decltype(std::declval<Functor>()(std::declval<Arguments>()...)) type;
 };
 
 template<typename Function, typename... Arguments>
 using function_result_t = typename function_result<Function, void, Arguments...>::type;
 
-
 class no_such_element_error : public std::runtime_error
 {
 public:
-	no_such_element_error() noexcept : std::runtime_error("no element present in optional") {}
+    no_such_element_error() noexcept : std::runtime_error("no element present in optional")
+    {}
 };
 
+template<typename Type>
+class optional;
+
+template<>
+class optional<void>
+{
+public:
+    bool present() const noexcept
+    {
+        return false;
+    }
+    bool empty() const noexcept
+    {
+        return true;
+    }
+};
 
 template<typename Type>
 class optional
 {
 public:
-	typedef typename Type value_type;
+    typedef typename Type value_type;
 
-	optional() noexcept
-	{
-		_present = false;
-	}
-	template<typename Ty>
-	optional(Ty&& _value)
-	{
-		new(&_data) Type(std::forward<Ty>(_value));
-		_present = true;
-	}
-	optional(const optional& _copy)
-	{
-		if (_copy._present) {
-			new(&_data) Type(_copy.get());
-		}
+    optional() noexcept
+    {
+        _present = false;
+    }
+    template<typename... Args>
+    optional(Args&&... args)
+    {
+        _present = false;
 
-		_present = _copy._present;
-	}
-	optional(optional&& _move)
-	{
-		if (_move._present) {
-			new(&_data) Type(std::move(_move.get()));
+        emplace(std::forward<Args>(args)...);
+    }
+    optional(const optional& copy)
+    {
+        if (copy._present) {
+            new (&_data) Type(copy.get());
+        }
 
-			_present = true;
-			_move._present = false;
-		} else {
-			_present = false;
-		}
-	}
-	~optional()
-	{
-		reset();
-	}
-	void reset()
-	{
-		if (_present) {
-			_present = false;
+        _present = copy._present;
+    }
+    optional(optional&& move)
+    {
+        if (move._present) {
+            new (&_data) Type(std::move(move.get()));
 
-			reinterpret_cast<Type*>(&_data)->~Type();
-		}
-	}
-	template<typename Consumer>
-	void if_present(Consumer&& _consumer)
-	{
-		if (_present) {
-			_consumer(get());
-		}
-	}
-	template<typename Consumer>
-	void if_present(Consumer&& _consumer) const
-	{
-		if (_present) {
-			_consumer(get());
-		}
-	}
-	template<typename Consumer, typename Runnable>
-	void if_present_or_else(Consumer&& _consumer, Runnable&& _runnable)
-	{
-		if (_present) {
-			_consumer(get());
-		} else {
-			_runnable();
-		}
-	}
-	template<typename Consumer, typename Runnable>
-	void if_present_or_else(Consumer&& _consumer, Runnable&& _runnable) const
-	{
-		if (_present) {
-			_consumer(get());
-		} else {
-			_runnable();
-		}
-	}
-	template<typename... Arguments>
-	void emplace(Arguments&&... _arguments)
-	{
-		reset();
+            _present      = true;
+            move._present = false;
+        } else {
+            _present = false;
+        }
+    }
+    ~optional()
+    {
+        reset();
+    }
+    void reset()
+    {
+        if (_present) {
+            _present = false;
 
-		new(&_data) Type(std::forward<Arguments>(_arguments)...);
-	}
-	bool present() const noexcept
-	{
-		return _present;
-	}
-	bool empty() const noexcept
-	{
-		return !_present;
-	}
-	Type& get()
-	{
-		if (!_present) {
-			throw no_such_element_error();
-		}
+            reinterpret_cast<Type*>(&_data)->~Type();
+        }
+    }
+    template<typename Consumer>
+    void if_present(Consumer&& consumer)
+    {
+        if (_present) {
+            consumer(get());
+        }
+    }
+    template<typename Consumer>
+    void if_present(Consumer&& consumer) const
+    {
+        if (_present) {
+            consumer(get());
+        }
+    }
+    template<typename Consumer, typename Runnable>
+    void if_present_or_else(Consumer&& consumer, Runnable&& runnable)
+    {
+        if (_present) {
+            consumer(get());
+        } else {
+            runnable();
+        }
+    }
+    template<typename Consumer, typename Runnable>
+    void if_present_or_else(Consumer&& consumer, Runnable&& runnable) const
+    {
+        if (_present) {
+            consumer(get());
+        } else {
+            runnable();
+        }
+    }
+    template<typename... Arguments>
+    void emplace(Arguments&&... arguments)
+    {
+        reset();
 
-		return *reinterpret_cast<Type*>(&_data);
-	}
-	const Type& get() const
-	{
-		if (!_present) {
-			throw no_such_element_error();
-		}
+        new (&_data) Type(std::forward<Arguments>(arguments)...);
+    }
+    bool present() const noexcept
+    {
+        return _present;
+    }
+    bool empty() const noexcept
+    {
+        return !_present;
+    }
+    Type& get()
+    {
+        if (!_present) {
+            throw no_such_element_error();
+        }
 
-		return *reinterpret_cast<const Type*>(&_data);
-	}
-	Type& or_else(Type& _value)
-	{
-		if (_present) {
-			return get();
-		}
+        return *reinterpret_cast<Type*>(&_data);
+    }
+    const Type& get() const
+    {
+        if (!_present) {
+            throw no_such_element_error();
+        }
 
-		return _value;
-	}
-	Type or_else(Type&& _value)
-	{
-		if (_present) {
-			return get();
-		}
+        return *reinterpret_cast<const Type*>(&_data);
+    }
+    Type& or_else(Type& value)
+    {
+        if (_present) {
+            return get();
+        }
 
-		return _value;
-	}
-	const Type& or_else(const Type& _value) const
-	{
-		if (_present) {
-			return get();
-		}
+        return value;
+    }
+    Type or_else(Type&& value)
+    {
+        if (_present) {
+            return get();
+        }
 
-		return _value;
-	}
-	template<typename Supplier>
-	typename std::conditional<
-		std::is_reference<typename function_result_t<Supplier>>::value,
-		Type&,
-		Type>::type
-		or_else_get(Supplier&& _supplier)
-	{
-		if (_present) {
-			return get();
-		}
+        return value;
+    }
+    const Type& or_else(const Type& value) const
+    {
+        if (_present) {
+            return get();
+        }
 
-		return _supplier();
-	}
-	template<typename Supplier>
-	typename std::conditional<
-		std::is_reference<typename function_result_t<Supplier>>::value,
-		const Type&,
-		Type>::type
-		or_else_get(Supplier&& _supplier) const
-	{
-		if (_present) {
-			return get();
-		}
+        return value;
+    }
+    template<typename Supplier>
+    typename std::conditional<std::is_reference<typename function_result_t<Supplier>>::value, Type&, Type>::type
+        or_else_get(Supplier&& supplier)
+    {
+        if (_present) {
+            return get();
+        }
 
-		return _supplier();
-	}
-	template<typename Filter>
-	optional filter(Filter&& _filter)
-	{
-		if (_present && (_filter(get()) == true)) {
-			return *this;
-		}
+        return supplier();
+    }
+    template<typename Supplier>
+    typename std::conditional<std::is_reference<typename function_result_t<Supplier>>::value, const Type&, Type>::type
+        or_else_get(Supplier&& supplier) const
+    {
+        if (_present) {
+            return get();
+        }
 
-		return {};
-	}
-	template<typename Filter>
-	optional filter(Filter&& _filter) const
-	{
-		if (_present && (_filter(get()) == true)) {
-			return *this;
-		}
+        return supplier();
+    }
+    template<typename Filter>
+    optional filter(Filter&& filter)
+    {
+        if (_present && (filter(get()) == true)) {
+            return *this;
+        }
 
-		return {};
-	}
-	template<typename Mapper>
-	optional<typename function_result_t<Mapper, Type>> map(Mapper&& _mapper)
-	{
-		if (_present) {
-			return { _mapper(get()) };
-		}
+        return {};
+    }
+    template<typename Filter>
+    optional filter(Filter&& filter) const
+    {
+        if (_present && (filter(get()) == true)) {
+            return *this;
+        }
 
-		return {};
-	}
-	template<typename Mapper>
-	optional<typename function_result_t<Mapper, Type>> map(Mapper&& _mapper) const
-	{
-		if (_present) {
-			return { _mapper(get()) };
-		}
+        return {};
+    }
+    template<typename Mapper>
+    optional<typename function_result_t<Mapper, Type>> map(Mapper&& mapper)
+    {
+        if (_present) {
+            return { mapper(get()) };
+        }
 
-		return {};
-	}
-	operator bool() const noexcept
-	{
-		return present();
-	}
-	operator Type&()
-	{
-		return get();
-	}
-	operator const Type&() const
-	{
-		return get();
-	}
-	Type* operator->()
-	{
-		return &get();
-	}
-	const Type* operator->() const
-	{
-		return &get();
-	}
-	optional& operator=(const optional& _copy)
-	{
-		reset();
+        return {};
+    }
+    template<typename Mapper>
+    optional<typename function_result_t<Mapper, Type>> map(Mapper&& mapper) const
+    {
+        if (_present) {
+            return { mapper(get()) };
+        }
 
-		if (_copy._present) {
-			new(&_data) Type(_copy.get());
+        return {};
+    }
+    operator bool() const noexcept
+    {
+        return present();
+    }
+    operator Type&()
+    {
+        return get();
+    }
+    operator const Type&() const
+    {
+        return get();
+    }
+    Type* operator->()
+    {
+        return &get();
+    }
+    const Type* operator->() const
+    {
+        return &get();
+    }
+    optional& operator=(const optional& copy)
+    {
+        reset();
 
-			_present = true;
-		}
+        if (copy._present) {
+            new (&_data) Type(copy.get());
 
-		return *this;
-	}
-	optional& operator=(optional&& _move)
-	{
-		reset();
+            _present = true;
+        }
 
-		if (_move._present) {
-			new(&_data) Type(std::move(_move.get()));
+        return *this;
+    }
+    optional& operator=(optional&& move)
+    {
+        reset();
 
-			_present = true;
-			_move._present = false;
-		}
+        if (move._present) {
+            new (&_data) Type(std::move(move.get()));
 
-		return *this;
-	}
+            _present      = true;
+            move._present = false;
+        }
+
+        return *this;
+    }
 
 private:
-	typename std::aligned_storage<sizeof(Type), alignof(Type)>::type _data;
-	bool _present;
+    typename std::aligned_storage<sizeof(Type), alignof(Type)>::type _data;
+    bool _present;
 };
 
-}
+} // namespace optional_detail
 
 using no_such_element_error = optional_detail::no_such_element_error;
 
@@ -340,19 +348,18 @@ using optional = typename optional_detail::optional<Type>;
 template<typename Type>
 inline optional<Type> make_optional(Type&& _value)
 {
-	return { std::forward<Type>(_value) };
+    return { std::forward<Type>(_value) };
 }
 
-namespace std
-{
+namespace std {
 
 template<typename Type>
 struct hash<optional<Type>>
 {
-	std::size_t operator()(const optional<Type>& _value) const
-	{
-		return _value ? std::hash<Type>()(_value.get()) : 0;
-	}
+    std::size_t operator()(const optional<Type>& _value) const
+    {
+        return _value ? std::hash<Type>()(_value.get()) : 0;
+    }
 };
 
-}
+} // namespace std

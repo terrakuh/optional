@@ -260,10 +260,58 @@ public:
 
         return supplier();
     }
+
+    template<typename Return, typename Ty = T, typename... Args>
+    typename std::enable_if<std::is_class<Ty>::value, optional>::type filter(Return (Ty::*filter)(Args...),
+                                                                             Args&&... args)
+    {
+        if (_present && (get().*filter(std::forward<Args>(args)...)) {
+            return *this;
+        }
+
+        return {};
+    }
+    template<typename Return, typename Ty = T, typename... Args>
+    typename std::enable_if<std::is_class<Ty>::value, optional>::type filter(Return (Ty::*filter)(Args...),
+                                                                             Args&&... args) const
+    {
+        if (_present && (get().*filter(std::forward<Args>(args)...)) {
+            return *this;
+        }
+
+        return {};
+    }
+    template<typename Return, typename... Args>
+    optional filter(Return(*filter)(T&, Args...), Args&&... args)
+    {
+        if (_present && filter(get(), std::forward<Args>(args)...)) {
+            return *this;
+        }
+
+        return {};
+    }
+    template<typename Return, typename... Args>
+    optional filter(Return (*filter)(T, Args...), Args&&... args) const
+    {
+        if (_present && filter(get(), std::forward<Args>(args)...)) {
+            return *this;
+        }
+
+        return {};
+    }
+    template<typename Return, typename... Args>
+    optional filter(Return (*filter)(const T&, Args...), Args&&... args) const
+    {
+        if (_present && filter(get(), std::forward<Args>(args)...)) {
+            return *this;
+        }
+
+        return {};
+    }
     template<typename Filter, typename... Args>
     optional filter(Filter&& filter, Args&&... args)
     {
-        if (_present && (filter(get(), std::forward<Args>(args)...) == true)) {
+        if (_present && filter(get(), std::forward<Args>(args)...)) {
             return *this;
         }
 
@@ -272,7 +320,7 @@ public:
     template<typename Filter, typename... Args>
     optional filter(Filter&& filter, Args&&... args) const
     {
-        if (_present && (filter(get(), std::forward<Args>(args)...) == true)) {
+        if (_present && filter(get(), std::forward<Args>(args)...)) {
             return *this;
         }
 
@@ -336,7 +384,8 @@ public:
         return {};
     }
     template<typename Mapper, typename... Args>
-    auto map(Mapper&& mapper, Args&&... args) const -> decltype(make_optional(mapper(get(), std::forward<Args>(args)...)))
+    auto map(Mapper&& mapper, Args&&... args) const
+        -> decltype(make_optional(mapper(get(), std::forward<Args>(args)...)))
     {
         if (_present) {
             return { mapper(get(), std::forward<Args>(args)...) };
@@ -403,11 +452,7 @@ using no_such_element_error = optional_detail::no_such_element_error;
 template<typename T>
 using optional = typename optional_detail::optional<T>;
 
-template<typename T>
-inline optional<T> make_optional(T&& _value)
-{
-    return { std::forward<T>(_value) };
-}
+using optional_detail::make_optional;
 
 namespace std {
 

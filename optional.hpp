@@ -267,7 +267,7 @@ public:
     typename std::enable_if<std::is_class<Ty>::value, optional>::type filter(Return (Ty::*filter)(Args...),
                                                                              Args&&... args)
     {
-        if (_present && (get().*filter(std::forward<Args>(args)...)) {
+        if (_present && (get().*filter(std::forward<Args>(args)...))) {
             return *this;
         }
 
@@ -277,7 +277,7 @@ public:
     typename std::enable_if<std::is_class<Ty>::value, optional>::type filter(Return (Ty::*filter)(Args...),
                                                                              Args&&... args) const
     {
-        if (_present && (get().*filter(std::forward<Args>(args)...)) {
+        if (_present && (get().*filter(std::forward<Args>(args)...))) {
             return *this;
         }
 

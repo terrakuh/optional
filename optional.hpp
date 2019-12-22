@@ -151,44 +151,46 @@ public:
             reinterpret_cast<T*>(&_data)->~T();
         }
     }
-    template<typename Consumer>
-    void if_present(Consumer&& consumer)
+    template<typename Consumer, typename... Args>
+    void if_present(Consumer&& consumer, Args&&... args)
     {
         if (_present) {
-            consumer(get());
+            consumer(get(), std::forward<Args>(args)...);
         }
     }
-    template<typename Consumer>
-    void if_present(Consumer&& consumer) const
+    template<typename Consumer, typename... Args>
+    void if_present(Consumer&& consumer, Args&&... args) const
     {
         if (_present) {
-            consumer(get());
+            consumer(get(), std::forward<Args>(args)...);
         }
     }
-    template<typename Consumer, typename Runnable>
-    void if_present_or_else(Consumer&& consumer, Runnable&& runnable)
+    template<typename Consumer, typename Runnable, typename... Consumer_args, typename... Runnable_args>
+    void if_present_or_else(Consumer&& consumer, Runnable&& runnable, Consumer_args&&... consumer_args,
+                            Runnable_args&&... runnable_args)
     {
         if (_present) {
-            consumer(get());
+            consumer(get(), std::forward<Consumer_args>(consumer_args)...);
         } else {
-            runnable();
+            runnable(std::forward<Runnable_args>(runnable_args)...);
         }
     }
-    template<typename Consumer, typename Runnable>
-    void if_present_or_else(Consumer&& consumer, Runnable&& runnable) const
+    template<typename Consumer, typename Runnable, typename... Consumer_args, typename... Runnable_args>
+    void if_present_or_else(Consumer&& consumer, Runnable&& runnable, Consumer_args&&... consumer_args,
+                            Runnable_args&&... runnable_args) const
     {
         if (_present) {
-            consumer(get());
+            consumer(get(), std::forward<Consumer_args>(consumer_args)...);
         } else {
-            runnable();
+            runnable(std::forward<Runnable_args>(runnable_args)...);
         }
     }
-    template<typename... Arguments>
-    void emplace(Arguments&&... arguments)
+    template<typename... Args>
+    void emplace(Args&&... args)
     {
         reset();
 
-        new (&_data) T(std::forward<Arguments>(arguments)...);
+        new (&_data) T(std::forward<Args>(args)...);
 
         _present = true;
     }
@@ -282,7 +284,7 @@ public:
         return {};
     }
     template<typename Return, typename... Args>
-    optional filter(Return(*filter)(T&, Args...), Args&&... args)
+    optional filter(Return (*filter)(T&, Args...), Args&&... args)
     {
         if (_present && filter(get(), std::forward<Args>(args)...)) {
             return *this;

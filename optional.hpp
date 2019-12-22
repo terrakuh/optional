@@ -26,6 +26,7 @@ For more information, please refer to <http://unlicense.org>
 */
 #pragma once
 
+#include <exception>
 #include <functional>
 #include <stdexcept>
 #include <type_traits>
@@ -261,6 +262,40 @@ public:
         }
 
         return supplier();
+    }
+    T& or_else_throw(std::exception_ptr e)
+    {
+        if (_present) {
+            return get();
+        }
+
+        std::rethrow_exception(e);
+    }
+    const T& or_else_throw(std::exception_ptr e) const
+    {
+        if (_present) {
+            return get();
+        }
+
+        std::rethrow_exception(e);
+    }
+    template<typename Exception, typename... Args>
+    T& or_else_throw(Args&&... args)
+    {
+        if (_present) {
+            return get();
+        }
+
+        throw Exception(std::forward<Args>(args)...);
+    }
+    template<typename Exception, typename... Args>
+    const T& or_else_throw(Args&&... args) const
+    {
+        if (_present) {
+            return get();
+        }
+
+        throw Exception(std::forward<Args>(args)...);
     }
 
     template<typename Return, typename Ty = T, typename... Args>

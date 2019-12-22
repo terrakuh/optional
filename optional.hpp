@@ -40,7 +40,7 @@ struct make_void
 };
 
 template<typename... Types>
-using void_t = typename make_void<Types...>::type;
+using void_type = typename make_void<Types...>::type;
 
 template<typename Function, typename = void, typename... Arguments>
 struct function_result;
@@ -48,29 +48,30 @@ struct function_result;
 template<typename Return, typename... Arguments>
 struct function_result<Return (*)(Arguments...), void, Arguments...>
 {
-    typedef typename Return type;
+    typedef Return type;
 };
 
 template<typename Return, typename Class, typename... Arguments>
 struct function_result<Return (Class::*)(Arguments...), void, Arguments...>
 {
-    typedef typename Return type;
+    typedef Return type;
 };
 
 template<typename Return, typename Class, typename... Arguments>
 struct function_result<Return (Class::*)(Arguments...) const, void, Arguments...>
 {
-    typedef typename Return type;
+    typedef Return type;
 };
 
 template<typename Functor, typename... Arguments>
-struct function_result<Functor, void_t<decltype(std::declval<Functor>()(std::declval<Arguments>()...))>, Arguments...>
+struct function_result<Functor, void_type<decltype(std::declval<Functor>()(std::declval<Arguments>()...))>,
+                       Arguments...>
 {
     typedef decltype(std::declval<Functor>()(std::declval<Arguments>()...)) type;
 };
 
 template<typename Function, typename... Arguments>
-using function_result_t = typename function_result<Function, void, Arguments...>::type;
+using function_result_type = typename function_result<Function, void, Arguments...>::type;
 
 class no_such_element_error : public std::runtime_error
 {
@@ -79,8 +80,14 @@ public:
     {}
 };
 
-template<typename Type>
+template<typename T>
 class optional;
+
+template<typename T>
+inline optional<T> make_optional(T&& _value)
+{
+    return { std::forward<T>(_value) };
+}
 
 template<>
 class optional<void>
@@ -96,11 +103,11 @@ public:
     }
 };
 
-template<typename Type>
+template<typename T>
 class optional
 {
 public:
-    typedef typename Type value_type;
+    typedef T value_type;
 
     optional() noexcept
     {
@@ -116,7 +123,7 @@ public:
     optional(const optional& copy)
     {
         if (copy._present) {
-            new (&_data) Type(copy.get());
+            new (&_data) T(copy.get());
         }
 
         _present = copy._present;
@@ -124,7 +131,7 @@ public:
     optional(optional&& move)
     {
         if (move._present) {
-            new (&_data) Type(std::move(move.get()));
+            new (&_data) T(std::move(move.get()));
 
             _present      = true;
             move._present = false;
@@ -141,7 +148,7 @@ public:
         if (_present) {
             _present = false;
 
-            reinterpret_cast<Type*>(&_data)->~Type();
+            reinterpret_cast<T*>(&_data)->~T();
         }
     }
     template<typename Consumer>
@@ -181,7 +188,9 @@ public:
     {
         reset();
 
-        new (&_data) Type(std::forward<Arguments>(arguments)...);
+        new (&_data) T(std::forward<Arguments>(arguments)...);
+
+        _present = true;
     }
     bool present() const noexcept
     {
@@ -191,23 +200,23 @@ public:
     {
         return !_present;
     }
-    Type& get()
+    T& get()
     {
         if (!_present) {
             throw no_such_element_error();
         }
 
-        return *reinterpret_cast<Type*>(&_data);
+        return *reinterpret_cast<T*>(&_data);
     }
-    const Type& get() const
+    const T& get() const
     {
         if (!_present) {
             throw no_such_element_error();
         }
 
-        return *reinterpret_cast<const Type*>(&_data);
+        return *reinterpret_cast<const T*>(&_data);
     }
-    Type& or_else(Type& value)
+    T& or_else(T& value)
     {
         if (_present) {
             return get();
@@ -215,7 +224,7 @@ public:
 
         return value;
     }
-    Type or_else(Type&& value)
+    T or_else(T&& value)
     {
         if (_present) {
             return get();
@@ -223,7 +232,7 @@ public:
 
         return value;
     }
-    const Type& or_else(const Type& value) const
+    const T& or_else(const T& value) const
     {
         if (_present) {
             return get();
@@ -232,7 +241,7 @@ public:
         return value;
     }
     template<typename Supplier>
-    typename std::conditional<std::is_reference<typename function_result_t<Supplier>>::value, Type&, Type>::type
+    typename std::conditional<std::is_reference<function_result_type<Supplier>>::value, T&, T>::type
         or_else_get(Supplier&& supplier)
     {
         if (_present) {
@@ -242,7 +251,7 @@ public:
         return supplier();
     }
     template<typename Supplier>
-    typename std::conditional<std::is_reference<typename function_result_t<Supplier>>::value, const Type&, Type>::type
+    typename std::conditional<std::is_reference<function_result_type<Supplier>>::value, const T&, T>::type
         or_else_get(Supplier&& supplier) const
     {
         if (_present) {
@@ -251,59 +260,108 @@ public:
 
         return supplier();
     }
-    template<typename Filter>
-    optional filter(Filter&& filter)
+    template<typename Filter, typename... Args>
+    optional filter(Filter&& filter, Args&&... args)
     {
-        if (_present && (filter(get()) == true)) {
+        if (_present && (filter(get(), std::forward<Args>(args)...) == true)) {
             return *this;
         }
 
         return {};
     }
-    template<typename Filter>
-    optional filter(Filter&& filter) const
+    template<typename Filter, typename... Args>
+    optional filter(Filter&& filter, Args&&... args) const
     {
-        if (_present && (filter(get()) == true)) {
+        if (_present && (filter(get(), std::forward<Args>(args)...) == true)) {
             return *this;
         }
 
         return {};
     }
-    template<typename Mapper>
-    optional<typename function_result_t<Mapper, Type>> map(Mapper&& mapper)
+
+    template<typename Return, typename Ty = T, typename... Args>
+    typename std::enable_if<std::is_class<Ty>::value, optional<Return>>::type map(Return (Ty::*mapper)(Args...),
+                                                                                  Args&&... args)
     {
         if (_present) {
-            return { mapper(get()) };
+            return { (get().*mapper)(std::forward<Args>(args)...) };
         }
 
         return {};
     }
-    template<typename Mapper>
-    optional<typename function_result_t<Mapper, Type>> map(Mapper&& mapper) const
+    template<typename Return, typename Ty = T, typename... Args>
+    typename std::enable_if<std::is_class<Ty>::value, optional<Return>>::type map(Return (Ty::*mapper)(Args...) const,
+                                                                                  Args&&... args) const
     {
         if (_present) {
-            return { mapper(get()) };
+            return { (get().*mapper)(std::forward<Args>(args)...) };
         }
 
         return {};
     }
+    template<typename Return, typename... Args>
+    optional<Return> map(Return (*mapper)(T&, Args...), Args&&... args)
+    {
+        if (_present) {
+            return { mapper(get(), std::forward<Args>(args)...) };
+        }
+
+        return {};
+    }
+    template<typename Return, typename... Args>
+    optional<Return> map(Return (*mapper)(T, Args...), Args&&... args) const
+    {
+        if (_present) {
+            return { mapper(get(), std::forward<Args>(args)...) };
+        }
+
+        return {};
+    }
+    template<typename Return, typename... Args>
+    optional<Return> map(Return (*mapper)(const T&, Args...), Args&&... args) const
+    {
+        if (_present) {
+            return { mapper(get(), std::forward<Args>(args)...) };
+        }
+
+        return {};
+    }
+    template<typename Mapper, typename... Args>
+    auto map(Mapper&& mapper, Args&&... args) -> decltype(make_optional(mapper(get(), std::forward<Args>(args)...)))
+    {
+        if (_present) {
+            return { mapper(get(), std::forward<Args>(args)...) };
+        }
+
+        return {};
+    }
+    template<typename Mapper, typename... Args>
+    auto map(Mapper&& mapper, Args&&... args) const -> decltype(make_optional(mapper(get(), std::forward<Args>(args)...)))
+    {
+        if (_present) {
+            return { mapper(get(), std::forward<Args>(args)...) };
+        }
+
+        return {};
+    }
+
     operator bool() const noexcept
     {
         return present();
     }
-    operator Type&()
+    operator T&()
     {
         return get();
     }
-    operator const Type&() const
+    operator const T&() const
     {
         return get();
     }
-    Type* operator->()
+    T* operator->()
     {
         return &get();
     }
-    const Type* operator->() const
+    const T* operator->() const
     {
         return &get();
     }
@@ -312,7 +370,7 @@ public:
         reset();
 
         if (copy._present) {
-            new (&_data) Type(copy.get());
+            new (&_data) T(copy.get());
 
             _present = true;
         }
@@ -324,7 +382,7 @@ public:
         reset();
 
         if (move._present) {
-            new (&_data) Type(std::move(move.get()));
+            new (&_data) T(std::move(move.get()));
 
             _present      = true;
             move._present = false;
@@ -334,7 +392,7 @@ public:
     }
 
 private:
-    typename std::aligned_storage<sizeof(Type), alignof(Type)>::type _data;
+    typename std::aligned_storage<sizeof(T), alignof(T)>::type _data;
     bool _present;
 };
 
@@ -342,23 +400,23 @@ private:
 
 using no_such_element_error = optional_detail::no_such_element_error;
 
-template<typename Type>
-using optional = typename optional_detail::optional<Type>;
+template<typename T>
+using optional = typename optional_detail::optional<T>;
 
-template<typename Type>
-inline optional<Type> make_optional(Type&& _value)
+template<typename T>
+inline optional<T> make_optional(T&& _value)
 {
-    return { std::forward<Type>(_value) };
+    return { std::forward<T>(_value) };
 }
 
 namespace std {
 
-template<typename Type>
-struct hash<optional<Type>>
+template<typename T>
+struct hash<optional<T>>
 {
-    std::size_t operator()(const optional<Type>& _value) const
+    std::size_t operator()(const optional<T>& _value) const
     {
-        return _value ? std::hash<Type>()(_value.get()) : 0;
+        return _value ? std::hash<T>()(_value.get()) : 0;
     }
 };
 
